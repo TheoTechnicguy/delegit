@@ -1,0 +1,36 @@
+kind: pipeline
+type: docker
+name: pipe
+
+clone:
+  retries: 3
+
+steps:
+  - name: gitleaks
+    image: plugins/gitleaks
+    pull: if-not-exists
+
+  - name: golangci-lint
+    image: golangci/golangci-lint:v1.55.2
+    commands:
+      - golangci-lint run
+    pull: if-not-exists
+
+  - name: pr
+    image: plugins/docker
+    settings:
+      custom_dns: 1.1.1.1
+      registry: git.licolas.net
+      username: drone
+      password:
+        from_secret: git_registry_password
+      repo: git.licolas.net/delegit/delegit
+      tags:
+        -  ${DRONE_COMMIT_SHA:0:8}
+        -  pr${DRONE_PULL_REQUEST}
+      dockerfile: dockerfile
+      purge: true
+      insecure: false
+    when:
+      event:
+        - pull_request
