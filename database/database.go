@@ -12,6 +12,7 @@ package database
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
@@ -136,4 +137,63 @@ func (db *Database) DeleteFeedback(feedback *Feedback) error {
 		return r.Error
 	}
 	return nil
+}
+
+func (db *Database) updateFeedbackAppreciation(id uint, appr string, change int) (*Feedback, error) {
+	f := &Feedback{}
+	tx := db.db.Begin()
+	defer tx.Rollback()
+
+	if r := tx.First(&f, id); r.Error != nil {
+		return nil, r.Error
+	}
+
+	var votes *uint
+	switch appr {
+	case "upvotes":
+		votes = &f.Upvotes
+	case "downvotes":
+		votes = &f.Downvotes
+	default:
+		return nil, fmt.Errorf("unknown appreciation")
+	}
+
+	switch change {
+	case 1:
+		if *votes > 2000 {
+			return nil, fmt.Errorf("out of bounds")
+		} else {
+			*votes += 1
+		}
+	case -1:
+		if *votes == 0 {
+			return nil, fmt.Errorf("out of bounds")
+		} else {
+			*votes -= 1
+		}
+	}
+
+	if r := tx.Save(f); r.Error != nil {
+		return nil, r.Error
+	}
+
+	tx.Commit()
+
+	return f, tx.Error
+}
+
+func (db *Database) IncrementFeedbackUpvotes(id uint) (*Feedback, error) {
+	return db.updateFeedbackAppreciation(id, "upvotes", 1)
+}
+
+func (db *Database) DecrementFeedbackUpvotes(id uint) (*Feedback, error) {
+	return db.updateFeedbackAppreciation(id, "upvotes", -1)
+}
+
+func (db *Database) IncrementFeedbackDownvotes(id uint) (*Feedback, error) {
+	return db.updateFeedbackAppreciation(id, "downvotes", 1)
+}
+
+func (db *Database) DecrementFeedbackDownvotes(id uint) (*Feedback, error) {
+	return db.updateFeedbackAppreciation(id, "downvotes", -1)
 }
