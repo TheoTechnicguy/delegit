@@ -171,16 +171,19 @@ func updateFeedbackDownvotes(ctx *gin.Context) {
 func RegisterFeedbackEndpoints(database *database.Database, router *gin.Engine) {
 	db = database
 
-	router.Use(CommonHeaders)
+	list := router.Group("/feedback")
+	list.Use(CommonHeaders)
 
-	router.GET("/feedback", optionsFeedbackList, getAllFeedback)
-	router.POST("/feedback", optionsFeedbackList, postFeedback)
-	router.OPTIONS("/feedback", optionsFeedbackList, Terminate)
+	list.GET("/", optionsFeedbackList, getAllFeedback)
+	list.POST("/", optionsFeedbackList, postFeedback)
+	list.OPTIONS("/", optionsFeedbackList, Terminate)
 
-	router.GET("/feedback/:id", optionsFeedbackEntry, getFeedback)
-	router.PATCH("/feedback/:id/upvote", optionsFeedbackEntry, updateFeedbackUpvotes)
-	router.PATCH("/feedback/:id/downvote", optionsFeedbackEntry, updateFeedbackDownvotes)
-	router.PUT("/feedback/:id", optionsFeedbackEntry, putFeedback)
-	router.DELETE("/feedback/:id", optionsFeedbackEntry, deleteFeedback)
-	router.OPTIONS("/feedback/:id", optionsFeedbackEntry, Terminate)
+	entry := list.Group("/:id")
+	entry.Use(optionsFeedbackEntry)
+	entry.GET("/", getFeedback)
+	entry.PATCH("/upvote", updateFeedbackUpvotes)
+	entry.PATCH("/downvote", updateFeedbackDownvotes)
+	entry.PUT("/", putFeedback)
+	entry.DELETE("/", deleteFeedback)
+	entry.OPTIONS("/", Terminate)
 }
