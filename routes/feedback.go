@@ -175,14 +175,14 @@ func RegisterFeedbackEndpoints(database *database.Database, router *gin.Engine) 
 
 	router.Use(CommonHeaders)
 
-	router.GET("/feedback", getAllFeedback)
-	router.POST("/feedback", postFeedback)
-	router.OPTIONS("/feedback", optionsFeedbackList)
+	router.GET("/feedback", optionsFeedbackList, getAllFeedback)
+	router.POST("/feedback", optionsFeedbackList, postFeedback)
+	router.OPTIONS("/feedback", optionsFeedbackList, Terminate)
 
-	router.GET("/feedback/:id", getFeedback)
-	router.PATCH("/feedback/:id/upvote", updateFeedbackUpvotes)
-	router.PATCH("/feedback/:id/downvote", updateFeedbackDownvotes)
-	router.PUT("/feedback/:id", putFeedback)
-	router.DELETE("/feedback/:id", deleteFeedback)
-	router.OPTIONS("/feedback/:id", optionsFeedbackEntry)
+	router.GET("/feedback/:id", optionsFeedbackEntry, getFeedback)
+	router.PATCH("/feedback/:id/upvote", optionsFeedbackEntry, updateFeedbackUpvotes)
+	router.PATCH("/feedback/:id/downvote", optionsFeedbackEntry, updateFeedbackDownvotes)
+	router.PUT("/feedback/:id", optionsFeedbackEntry, putFeedback)
+	router.DELETE("/feedback/:id", optionsFeedbackEntry, deleteFeedback)
+	router.OPTIONS("/feedback/:id", optionsFeedbackEntry, Terminate)
 }

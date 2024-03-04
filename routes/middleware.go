@@ -9,6 +9,8 @@
 package routes
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -20,4 +22,8 @@ func CommonHeaders(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Access-Control-Max-Age", "300")
 	ctx.Writer.Header().Set("X-Content-Type-Options", "nosniff")
 	ctx.Next()
+}
+
+func Terminate(ctx *gin.Context) {
+	ctx.AbortWithStatus(http.StatusNoContent)
 }
