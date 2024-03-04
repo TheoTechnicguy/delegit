@@ -94,12 +94,10 @@ func deleteFeedback(ctx *gin.Context) {
 
 func optionsFeedbackList(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	ctx.AbortWithStatus(http.StatusNoContent)
 }
 
 func optionsFeedbackEntry(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Access-Control-Allow-Methods", "GET, PUT, PATCH, DELETE, OPTIONS")
-	ctx.AbortWithStatus(http.StatusNoContent)
 }
 
 func updateFeedbackUpvotes(ctx *gin.Context) {
