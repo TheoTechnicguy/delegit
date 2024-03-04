@@ -98,8 +98,76 @@ func optionsFeedbackList(ctx *gin.Context) {
 }
 
 func optionsFeedbackEntry(ctx *gin.Context) {
-	ctx.Writer.Header().Set("Access-Control-Allow-Methods", "GET, PUT, DELETE, OPTIONS")
+	ctx.Writer.Header().Set("Access-Control-Allow-Methods", "GET, PUT, PATCH, DELETE, OPTIONS")
 	ctx.AbortWithStatus(http.StatusNoContent)
+}
+
+func updateFeedbackUpvotes(ctx *gin.Context) {
+	_id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	id := uint(_id)
+
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	var votes int
+	if err := ctx.ShouldBind(&votes); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	var feedback *database.Feedback
+	switch votes {
+	case 1:
+		feedback, err = db.IncrementFeedbackUpvotes(id)
+	case -1:
+		feedback, err = db.DecrementFeedbackUpvotes(id)
+	default:
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "unknown increment"})
+		return
+	}
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, feedback)
+}
+
+func updateFeedbackDownvotes(ctx *gin.Context) {
+	_id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	id := uint(_id)
+
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	var votes int
+	if err := ctx.ShouldBind(&votes); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	var feedback *database.Feedback
+	switch votes {
+	case 1:
+		feedback, err = db.IncrementFeedbackDownvotes(id)
+	case -1:
+		feedback, err = db.DecrementFeedbackDownvotes(id)
+	default:
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "unknown increment"})
+		return
+	}
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, feedback)
 }
 
 func RegisterFeedbackEndpoints(database *database.Database, router *gin.Engine) {
@@ -108,10 +176,13 @@ func RegisterFeedbackEndpoints(database *database.Database, router *gin.Engine) 
 	router.Use(CommonHeaders)
 
 	router.GET("/feedback", getAllFeedback)
-	router.GET("/feedback/:id", getFeedback)
 	router.POST("/feedback", postFeedback)
+	router.OPTIONS("/feedback", optionsFeedbackList)
+
+	router.GET("/feedback/:id", getFeedback)
+	router.PATCH("/feedback/:id/upvote", updateFeedbackUpvotes)
+	router.PATCH("/feedback/:id/downvote", updateFeedbackDownvotes)
 	router.PUT("/feedback/:id", putFeedback)
 	router.DELETE("/feedback/:id", deleteFeedback)
-	router.OPTIONS("/feedback", optionsFeedbackList)
 	router.OPTIONS("/feedback/:id", optionsFeedbackEntry)
 }
