@@ -14,6 +14,7 @@ import (
 	"strconv"
 
 	"git.licolas.net/delegit/delegit/database"
+	"git.licolas.net/delegit/delegit/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -30,7 +31,7 @@ func getAllFeedback(ctx *gin.Context) {
 }
 
 func postFeedback(ctx *gin.Context) {
-	var feedback database.Feedback
+	var feedback models.Feedback
 	if err := ctx.ShouldBind(&feedback); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
@@ -62,7 +63,7 @@ func getFeedback(ctx *gin.Context) {
 }
 
 func putFeedback(ctx *gin.Context) {
-	var feedback *database.Feedback
+	var feedback *models.Feedback
 	if err := ctx.ShouldBind(&feedback); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
@@ -77,7 +78,7 @@ func putFeedback(ctx *gin.Context) {
 }
 
 func deleteFeedback(ctx *gin.Context) {
-	var feedback *database.Feedback
+	var feedback *models.Feedback
 	if err := ctx.ShouldBind(&feedback); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
@@ -115,7 +116,7 @@ func updateFeedbackUpvotes(ctx *gin.Context) {
 		return
 	}
 
-	var feedback *database.Feedback
+	var feedback *models.Feedback
 	switch votes {
 	case 1:
 		feedback, err = db.IncrementFeedbackUpvotes(id)
@@ -149,7 +150,7 @@ func updateFeedbackDownvotes(ctx *gin.Context) {
 		return
 	}
 
-	var feedback *database.Feedback
+	var feedback *models.Feedback
 	switch votes {
 	case 1:
 		feedback, err = db.IncrementFeedbackDownvotes(id)

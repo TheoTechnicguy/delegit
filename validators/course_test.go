@@ -1,4 +1,4 @@
-package database
+package validators
 
 import (
 	"strings"
@@ -11,7 +11,7 @@ import (
 
 func TestCourseValidator(t *testing.T) {
 	validate := validator.New(validator.WithRequiredStructEnabled())
-	err := validate.RegisterValidation("iscourse", isCourse, false)
+	err := validate.RegisterValidation("iscourse", IsCourse, false)
 	require.NoError(t, err, "could not register validator")
 
 	validCourses := []string{

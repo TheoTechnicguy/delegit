@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 
+	"git.licolas.net/delegit/delegit/models"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -61,7 +62,7 @@ func NewDatabaseFromDialector(dialect gorm.Dialector, config *gorm.Config) (*Dat
 
 func (db *Database) AutoMigrate() error {
 	t := []any{
-		Feedback{},
+		models.Feedback{},
 	}
 
 	for _, v := range t {
@@ -73,13 +74,13 @@ func (db *Database) AutoMigrate() error {
 	return nil
 }
 
-func (db *Database) GetAllFeedback() (f []*Feedback, err error) {
+func (db *Database) GetAllFeedback() (f []*models.Feedback, err error) {
 	err = db.db.Find(&f).Error
 	return
 }
 
-func (db *Database) GetFeedback(id uint) (*Feedback, error) {
-	f := &Feedback{}
+func (db *Database) GetFeedback(id uint) (*models.Feedback, error) {
+	f := &models.Feedback{}
 	if r := db.db.First(&f, id); r.Error != nil {
 		return nil, r.Error
 	}
@@ -87,7 +88,7 @@ func (db *Database) GetFeedback(id uint) (*Feedback, error) {
 	return f, nil
 }
 
-func (db *Database) AddFeedback(feedback *Feedback) (*Feedback, error) {
+func (db *Database) AddFeedback(feedback *models.Feedback) (*models.Feedback, error) {
 	log.Debug().Any("feedback", feedback).Msg("adding feedback")
 	// Check mandatory fields
 	if feedback.Course == "" {
@@ -111,7 +112,7 @@ func (db *Database) AddFeedback(feedback *Feedback) (*Feedback, error) {
 	return feedback, nil
 }
 
-func (db *Database) UpdateFeedback(feedback *Feedback) (*Feedback, error) {
+func (db *Database) UpdateFeedback(feedback *models.Feedback) (*models.Feedback, error) {
 	// Check mandatory fields
 	if feedback.Course == "" {
 		return nil, ErrInvalidFeedback
@@ -127,7 +128,7 @@ func (db *Database) UpdateFeedback(feedback *Feedback) (*Feedback, error) {
 	return feedback, nil
 }
 
-func (db *Database) DeleteFeedback(feedback *Feedback) error {
+func (db *Database) DeleteFeedback(feedback *models.Feedback) error {
 	if r := db.db.
 		Where("course = ?", feedback.Course).
 		Where("feedback = ?", feedback.Feedback).
@@ -139,8 +140,8 @@ func (db *Database) DeleteFeedback(feedback *Feedback) error {
 	return nil
 }
 
-func (db *Database) updateFeedbackAppreciation(id uint, appr string, change int) (*Feedback, error) {
-	f := &Feedback{}
+func (db *Database) updateFeedbackAppreciation(id uint, appr string, change int) (*models.Feedback, error) {
+	f := &models.Feedback{}
 	tx := db.db.Begin()
 	defer tx.Rollback()
 
@@ -182,18 +183,18 @@ func (db *Database) updateFeedbackAppreciation(id uint, appr string, change int)
 	return f, tx.Error
 }
 
-func (db *Database) IncrementFeedbackUpvotes(id uint) (*Feedback, error) {
+func (db *Database) IncrementFeedbackUpvotes(id uint) (*models.Feedback, error) {
 	return db.updateFeedbackAppreciation(id, "upvotes", 1)
 }
 
-func (db *Database) DecrementFeedbackUpvotes(id uint) (*Feedback, error) {
+func (db *Database) DecrementFeedbackUpvotes(id uint) (*models.Feedback, error) {
 	return db.updateFeedbackAppreciation(id, "upvotes", -1)
 }
 
-func (db *Database) IncrementFeedbackDownvotes(id uint) (*Feedback, error) {
+func (db *Database) IncrementFeedbackDownvotes(id uint) (*models.Feedback, error) {
 	return db.updateFeedbackAppreciation(id, "downvotes", 1)
 }
 
-func (db *Database) DecrementFeedbackDownvotes(id uint) (*Feedback, error) {
+func (db *Database) DecrementFeedbackDownvotes(id uint) (*models.Feedback, error) {
 	return db.updateFeedbackAppreciation(id, "downvotes", -1)
 }
