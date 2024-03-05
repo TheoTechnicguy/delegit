@@ -172,13 +172,12 @@ func RegisterFeedbackEndpoints(database *database.Database, router *gin.Engine) 
 	db = database
 
 	list := router.Group("/feedback")
-	list.Use(CommonHeaders)
+	list.Use(CommonHeaders, optionsFeedbackList)
+	list.GET("/", getAllFeedback)
+	list.POST("/", postFeedback)
+	list.OPTIONS("/", Terminate)
 
-	list.GET("/", optionsFeedbackList, getAllFeedback)
-	list.POST("/", optionsFeedbackList, postFeedback)
-	list.OPTIONS("/", optionsFeedbackList, Terminate)
-
-	entry := list.Group("/:id")
+	entry := router.Group("/feedback/:id")
 	entry.Use(optionsFeedbackEntry)
 	entry.GET("/", getFeedback)
 	entry.PATCH("/upvote", updateFeedbackUpvotes)
