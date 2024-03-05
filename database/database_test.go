@@ -92,8 +92,12 @@ func generateFeedback(n uint, seed int64, mutator func(*Feedback, faker.Faker)) 
 	fkr := faker.NewWithSeed(rand.NewSource(s))
 	var i uint
 	for i = 0; i < n; i++ {
-		var newFeedback *Feedback
-		fkr.Struct().Fill(&newFeedback)
+		newFeedback := &Feedback{}
+		newFeedback.ID = fkr.UInt()
+		newFeedback.Course = fkr.RandomStringWithLength(10)
+		newFeedback.Feedback = fkr.Lorem().Paragraph(3)
+		newFeedback.Upvotes = fkr.UIntBetween(0, 2000)
+		newFeedback.Downvotes = fkr.UIntBetween(0, 2000)
 		mutator(newFeedback, fkr)
 		f = append(f, newFeedback)
 	}
@@ -161,7 +165,7 @@ func TestGetFeedback(t *testing.T) {
 		expectSQL.FromCSVString(feedbackToCSV(expected))
 		mock.
 			ExpectQuery("^SELECT .+ FROM [`\"']feedbacks[`\"'] WHERE [`\"']feedbacks[`\"']\\.[`\"']id[`\"']\\W*=.*$").
-			WithArgs(expected.ID).
+			WithArgs(expected.ID, 1).
 			WillReturnRows(expectSQL)
 
 		actual, err := db.GetFeedback(expected.ID)
@@ -192,7 +196,7 @@ func TestGetFeedbackNotExists(t *testing.T) {
 
 		mock.
 			ExpectQuery("^SELECT .+ FROM [`\"']feedbacks[`\"'] WHERE [`\"']feedbacks[`\"']\\.[`\"']id[`\"']\\W*=.*$").
-			WithArgs(id).
+			WithArgs(id, 1).
 			WillReturnError(gorm.ErrRecordNotFound)
 
 		feedback, err := db.GetFeedback(id)
@@ -464,5 +468,147 @@ func TestDeleteFeedbackUnknown(t *testing.T) {
 		err := db.DeleteFeedback(f)
 		assert.Error(t, err, "deleting unknown feedback should return an error")
 		assert.ErrorIs(t, err, gorm.ErrRecordNotFound, "deleting unknown feedback should return not found error")
+	}
+}
+
+// TestIncrementFeedbackUpvotes tests the correct incrementing
+// of feedback upvotes.
+// A feedback should be atomically updated to include the
+// upvote. Upvotes may not exceed 2000 or go below 0.
+func TestIncrementFeedbackUpvotes(t *testing.T) {
+	db, closer, mock, schema := createMockDatabase(t)
+	defer closer()
+
+	expectedFeedback, seed := generateFeedback(10, 0, func(f *Feedback, fkr faker.Faker) {
+		f.Upvotes = fkr.UIntBetween(0, 1999)
+	})
+
+	t.Logf("seed: %x\n", seed)
+
+	for _, f := range expectedFeedback {
+		expectSQL := schema
+		expectSQL.FromCSVString(feedbackToCSV(f))
+		f.Upvotes += 1
+
+		mock.ExpectBegin()
+		mock.
+			ExpectQuery("^SELECT .+ FROM [`\"']feedbacks[`\"'] WHERE [`\"']feedbacks[`\"']\\.[`\"']id[`\"']\\W*=.*$").
+			WithArgs(f.ID, 1).
+			WillReturnRows(expectSQL)
+		mock.
+			ExpectExec("^UPDATE [`\"']feedbacks[`\"'] SET .* WHERE .*$").
+			WithArgs(f.Course, f.Feedback, f.Upvotes, f.Downvotes, f.ID).
+			WillReturnResult(sqlmock.NewResult(int64(f.ID), 1))
+		mock.ExpectCommit()
+
+		actual, err := db.IncrementFeedbackUpvotes(f.ID)
+		assert.NoError(t, err, "update valid feedback should not return an error")
+		assert.Equal(t, f, actual, "returned feedback should be the same as the updated one")
+	}
+}
+
+// TestDecrementFeedbackUpvotes tests the correct decrementing
+// of feedback upvotes.
+// A feedback should be atomically updated to include the
+// upvote. Upvotes may not exceed 2000 or go below 0.
+func TestDecrementFeedbackUpvotes(t *testing.T) {
+	db, closer, mock, schema := createMockDatabase(t)
+	defer closer()
+
+	expectedFeedback, seed := generateFeedback(10, 0, func(f *Feedback, fkr faker.Faker) {
+		f.Upvotes = fkr.UIntBetween(1, 2000)
+	})
+	t.Logf("seed: %x\n", seed)
+
+	for _, f := range expectedFeedback {
+		expectSQL := schema
+		expectSQL.FromCSVString(feedbackToCSV(f))
+		f.Upvotes -= 1
+
+		mock.ExpectBegin()
+		mock.
+			ExpectQuery("^SELECT .+ FROM [`\"']feedbacks[`\"'] WHERE [`\"']feedbacks[`\"']\\.[`\"']id[`\"']\\W*=.*$").
+			WithArgs(f.ID, 1).
+			WillReturnRows(expectSQL)
+		mock.
+			ExpectExec("^UPDATE [`\"']feedbacks[`\"'] SET .* WHERE .*$").
+			WithArgs(f.Course, f.Feedback, f.Upvotes, f.Downvotes, f.ID).
+			WillReturnResult(sqlmock.NewResult(int64(f.ID), 1))
+		mock.ExpectCommit()
+
+		actual, err := db.DecrementFeedbackUpvotes(f.ID)
+		assert.NoError(t, err, "update valid feedback should not return an error")
+		assert.Equal(t, f, actual, "returned feedback should be the same as the updated one")
+	}
+}
+
+// TestIncrementFeedbackDownvotes tests the correct incrementing
+// of feedback upvotes.
+// A feedback should be atomically updated to include the
+// upvote. Upvotes may not exceed 2000 or go below 0.
+func TestIncrementFeedbackDownvotes(t *testing.T) {
+	db, closer, mock, schema := createMockDatabase(t)
+	defer closer()
+
+	expectedFeedback, seed := generateFeedback(10, 0, func(f *Feedback, fkr faker.Faker) {
+		f.Downvotes = fkr.UIntBetween(0, 1999)
+	})
+
+	t.Logf("seed: %x\n", seed)
+
+	for _, f := range expectedFeedback {
+		expectSQL := schema
+		expectSQL.FromCSVString(feedbackToCSV(f))
+		f.Downvotes += 1
+
+		mock.ExpectBegin()
+		mock.
+			ExpectQuery("^SELECT .+ FROM [`\"']feedbacks[`\"'] WHERE [`\"']feedbacks[`\"']\\.[`\"']id[`\"']\\W*=.*$").
+			WithArgs(f.ID, 1).
+			WillReturnRows(expectSQL)
+		mock.
+			ExpectExec("^UPDATE [`\"']feedbacks[`\"'] SET .* WHERE .*$").
+			WithArgs(f.Course, f.Feedback, f.Upvotes, f.Downvotes, f.ID).
+			WillReturnResult(sqlmock.NewResult(int64(f.ID), 1))
+		mock.ExpectCommit()
+
+		actual, err := db.IncrementFeedbackDownvotes(f.ID)
+		assert.NoError(t, err, "update valid feedback should not return an error")
+		assert.Equal(t, f, actual, "returned feedback should be the same as the updated one")
+	}
+}
+
+// TestDecrementFeedbackDownvotes tests the correct decrementing
+// of feedback Downvotes.
+// A feedback should be atomically updated to include the
+// upvote. Downvotes may not exceed 2000 or go below 0.
+func TestDecrementFeedbackDownvotes(t *testing.T) {
+	db, closer, mock, schema := createMockDatabase(t)
+	defer closer()
+
+	expectedFeedback, seed := generateFeedback(10, 0, func(f *Feedback, fkr faker.Faker) {
+		f.Downvotes = fkr.UIntBetween(1, 2000)
+	})
+	t.Logf("seed: %x\n", seed)
+
+	for _, f := range expectedFeedback {
+		expectSQL := schema
+		expectSQL.FromCSVString(feedbackToCSV(f))
+		f.Downvotes -= 1
+
+		mock.ExpectBegin()
+		mock.
+			ExpectQuery("^SELECT .+ FROM [`\"']feedbacks[`\"'] WHERE [`\"']feedbacks[`\"']\\.[`\"']id[`\"']\\W*=.*$").
+			WithArgs(f.ID, 1).
+			WillReturnRows(expectSQL)
+		mock.
+			ExpectExec("^UPDATE [`\"']feedbacks[`\"'] SET .* WHERE .*$").
+			WithArgs(f.Course, f.Feedback, f.Upvotes, f.Downvotes, f.ID).
+			WillReturnResult(sqlmock.NewResult(int64(f.ID), 1))
+		mock.ExpectCommit()
+
+		actual, err := db.DecrementFeedbackDownvotes(f.ID)
+		assert.NoError(t, err, "update valid feedback should not return an error")
+		assert.Equal(t, f, actual, "returned feedback should be the same as the updated one")
 	}
 }
