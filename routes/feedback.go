@@ -14,6 +14,7 @@ import (
 	"strconv"
 
 	"git.licolas.net/delegit/delegit/database"
+	"git.licolas.net/delegit/delegit/logic"
 	"git.licolas.net/delegit/delegit/models"
 	"github.com/gin-gonic/gin"
 )
@@ -23,10 +24,11 @@ var (
 )
 
 func getAllFeedback(ctx *gin.Context) {
-	feedback, err := db.GetAllFeedback()
+	feedback, err := logic.GetAllFeedback()
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": err})
 	}
+
 	ctx.JSON(http.StatusOK, feedback)
 }
 
@@ -37,7 +39,7 @@ func postFeedback(ctx *gin.Context) {
 		return
 	}
 
-	f, err := db.AddFeedback(&feedback)
+	f, err := logic.AddFeedback(&feedback)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -54,7 +56,7 @@ func getFeedback(ctx *gin.Context) {
 		return
 	}
 
-	feedback, err := db.GetFeedback(id)
+	feedback, err := logic.GetFeedback(id)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -69,7 +71,7 @@ func putFeedback(ctx *gin.Context) {
 		return
 	}
 
-	feedback, err := db.UpdateFeedback(feedback)
+	feedback, err := logic.UpdateFeedback(feedback)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -84,12 +86,12 @@ func deleteFeedback(ctx *gin.Context) {
 		return
 	}
 
-	if err := db.DeleteFeedback(feedback); err != nil {
+	feedback, err := logic.DeleteFeedback(feedback)
+	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
-	feedback.ID = 0
 	ctx.JSON(http.StatusOK, feedback)
 }
 
@@ -150,16 +152,7 @@ func updateFeedbackDownvotes(ctx *gin.Context) {
 		return
 	}
 
-	var feedback *models.Feedback
-	switch votes {
-	case 1:
-		feedback, err = db.IncrementFeedbackDownvotes(id)
-	case -1:
-		feedback, err = db.DecrementFeedbackDownvotes(id)
-	default:
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": "unknown increment"})
-		return
-	}
+	feedback, err := logic.UpdateFeedbackUpvotes(id, votes)
 
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})

@@ -80,7 +80,7 @@ func (db *Database) GetAllFeedback() (f []*models.Feedback, err error) {
 }
 
 func (db *Database) GetFeedback(id uint) (*models.Feedback, error) {
-	f := &models.Feedback{}
+	f := new(models.Feedback)
 	if r := db.db.First(&f, id); r.Error != nil {
 		return nil, r.Error
 	}
@@ -90,20 +90,6 @@ func (db *Database) GetFeedback(id uint) (*models.Feedback, error) {
 
 func (db *Database) AddFeedback(feedback *models.Feedback) (*models.Feedback, error) {
 	log.Debug().Any("feedback", feedback).Msg("adding feedback")
-	// Check mandatory fields
-	if feedback.Course == "" {
-		log.Debug().Err(ErrInvalidFeedback).Msg("empty course field")
-		return nil, ErrInvalidFeedback
-	}
-	if feedback.Feedback == "" {
-		log.Debug().Err(ErrInvalidFeedback).Msg("empty feedback field")
-		return nil, ErrInvalidFeedback
-	}
-
-	// Sanitize data
-	feedback.ID = 0
-	feedback.Upvotes = 0
-	feedback.Downvotes = 0
 
 	if r := db.db.Create(feedback); r.Error != nil {
 		return nil, r.Error
@@ -113,14 +99,6 @@ func (db *Database) AddFeedback(feedback *models.Feedback) (*models.Feedback, er
 }
 
 func (db *Database) UpdateFeedback(feedback *models.Feedback) (*models.Feedback, error) {
-	// Check mandatory fields
-	if feedback.Course == "" {
-		return nil, ErrInvalidFeedback
-	}
-	if feedback.Feedback == "" {
-		return nil, ErrInvalidFeedback
-	}
-
 	if r := db.db.Save(feedback); r.Error != nil {
 		return nil, r.Error
 	}
