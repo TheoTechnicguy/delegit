@@ -15,18 +15,11 @@ import (
 	"git.licolas.net/delegit/delegit/database"
 	"git.licolas.net/delegit/delegit/models"
 	"git.licolas.net/delegit/delegit/validators"
-	"github.com/go-playground/validator/v10"
 )
 
 var (
 	db *database.Database
 )
-
-func validateFeedback(f *models.Feedback) error {
-	v := validator.New()
-	v.RegisterValidation("iscourse", validators.IsCourse, false)
-	return v.Struct(f)
-}
 
 func sanitizeFeedback(f *models.Feedback) {
 	f.ID = 0
@@ -46,7 +39,7 @@ func AddFeedback(f *models.Feedback) (*models.Feedback, error) {
 	// Sanitize data
 	sanitizeFeedback(f)
 
-	if err := validateFeedback(f); err != nil {
+	if err := validators.ValidateFeedback(f); err != nil {
 		return nil, err
 	}
 
@@ -54,7 +47,7 @@ func AddFeedback(f *models.Feedback) (*models.Feedback, error) {
 }
 
 func UpdateFeedback(f *models.Feedback) (*models.Feedback, error) {
-	if err := validateFeedback(f); err != nil {
+	if err := validators.ValidateFeedback(f); err != nil {
 		return nil, err
 	}
 
@@ -62,7 +55,7 @@ func UpdateFeedback(f *models.Feedback) (*models.Feedback, error) {
 }
 
 func DeleteFeedback(f *models.Feedback) (*models.Feedback, error) {
-	if err := validateFeedback(f); err != nil {
+	if err := validators.ValidateFeedback(f); err != nil {
 		return nil, err
 	}
 
@@ -100,6 +93,7 @@ func UpdateFeedbackDownvotes(id uint, votes int) (*models.Feedback, error) {
 
 	return feedback, err
 }
+
 func Setup(database *database.Database) {
 	db = database
 }
