@@ -13,8 +13,10 @@ package database
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	"git.licolas.net/delegit/delegit/models"
+	"git.licolas.net/delegit/delegit/uxerrors"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -28,6 +30,18 @@ var (
 
 type Database struct {
 	db *gorm.DB
+}
+
+func handleError(err error) uxerrors.Errors {
+	switch err {
+	case gorm.ErrRecordNotFound:
+		uxe := uxerrors.New(err)
+		uxe.Summary = "Feedback not found"
+		uxe.Detail = "The feedback you requested could not be found. Check the ID and try again."
+		return uxerrors.NewErrors(http.StatusNotFound).Append(uxe)
+	default:
+		return uxerrors.NewErrors(http.StatusInternalServerError).AppendNew(err)
+	}
 }
 
 func NewDatabase(kind, dsn string) (*Database, error) {
@@ -75,14 +89,14 @@ func (db *Database) AutoMigrate() error {
 }
 
 func (db *Database) GetAllFeedback() (f []*models.Feedback, err error) {
-	err = db.db.Find(&f).Error
+	err = handleError(db.db.Find(&f).Error)
 	return
 }
 
 func (db *Database) GetFeedback(id uint) (*models.Feedback, error) {
 	f := new(models.Feedback)
 	if r := db.db.First(&f, id); r.Error != nil {
-		return nil, r.Error
+		return nil, handleError(r.Error)
 	}
 
 	return f, nil
@@ -92,7 +106,7 @@ func (db *Database) AddFeedback(feedback *models.Feedback) (*models.Feedback, er
 	log.Debug().Any("feedback", feedback).Msg("adding feedback")
 
 	if r := db.db.Create(feedback); r.Error != nil {
-		return nil, r.Error
+		return nil, handleError(r.Error)
 	}
 
 	return feedback, nil
@@ -100,7 +114,7 @@ func (db *Database) AddFeedback(feedback *models.Feedback) (*models.Feedback, er
 
 func (db *Database) UpdateFeedback(feedback *models.Feedback) (*models.Feedback, error) {
 	if r := db.db.Save(feedback); r.Error != nil {
-		return nil, r.Error
+		return nil, handleError(r.Error)
 	}
 
 	return feedback, nil
@@ -113,7 +127,7 @@ func (db *Database) DeleteFeedback(feedback *models.Feedback) error {
 		Where("upvotes = ?", feedback.Upvotes).
 		Where("downvotes = ?", feedback.Downvotes).
 		Delete(feedback); r.Error != nil {
-		return r.Error
+		return handleError(r.Error)
 	}
 	return nil
 }
@@ -124,7 +138,7 @@ func (db *Database) updateFeedbackAppreciation(id uint, appr string, change int)
 	defer tx.Rollback()
 
 	if r := tx.First(&f, id); r.Error != nil {
-		return nil, r.Error
+		return nil, handleError(r.Error)
 	}
 
 	var votes *uint
@@ -153,12 +167,12 @@ func (db *Database) updateFeedbackAppreciation(id uint, appr string, change int)
 	}
 
 	if r := tx.Save(f); r.Error != nil {
-		return nil, r.Error
+		return nil, handleError(r.Error)
 	}
 
 	tx.Commit()
 
-	return f, tx.Error
+	return f, handleError(tx.Error)
 }
 
 func (db *Database) IncrementFeedbackUpvotes(id uint) (*models.Feedback, error) {
