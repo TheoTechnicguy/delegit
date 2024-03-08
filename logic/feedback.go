@@ -11,9 +11,11 @@ package logic
 
 import (
 	"fmt"
+	"net/http"
 
 	"git.licolas.net/delegit/delegit/database"
 	"git.licolas.net/delegit/delegit/models"
+	"git.licolas.net/delegit/delegit/uxerrors"
 	"git.licolas.net/delegit/delegit/validators"
 )
 
@@ -73,7 +75,10 @@ func UpdateFeedbackUpvotes(id uint, votes int) (*models.Feedback, error) {
 	case -1:
 		feedback, err = db.DecrementFeedbackUpvotes(id)
 	default:
-		return nil, fmt.Errorf("unknown increment")
+		uxe := uxerrors.New(fmt.Errorf("unknown increment"))
+		uxe.Summary = "The increment you are attempting to do is invalid"
+		uxe.Detail = fmt.Sprintf("You are trying to increment feedback upvotes by %d, but only 1 or -1 is allowed. Correct the values and try again.", votes)
+		return nil, uxerrors.NewErrors(http.StatusBadRequest).Append(uxe)
 	}
 
 	return feedback, err
@@ -88,7 +93,10 @@ func UpdateFeedbackDownvotes(id uint, votes int) (*models.Feedback, error) {
 	case -1:
 		feedback, err = db.DecrementFeedbackDownvotes(id)
 	default:
-		return nil, fmt.Errorf("unknown increment")
+		uxe := uxerrors.New(fmt.Errorf("unknown increment"))
+		uxe.Summary = "The increment you are attempting to do is invalid"
+		uxe.Detail = fmt.Sprintf("You are trying to increment feedback downvotes by %d, but only 1 or -1 is allowed. Correct the values and try again.", votes)
+		return nil, uxerrors.NewErrors(http.StatusBadRequest).Append(uxe)
 	}
 
 	return feedback, err
