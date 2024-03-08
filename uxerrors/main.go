@@ -72,6 +72,11 @@ type Errors struct {
 	Errors []Error `json:"Errors"`
 }
 
+func NewErrors(status int) Errors {
+	es := Errors{Status: status}
+	return es
+}
+
 func (es Errors) Error() string {
 	s := ""
 	for _, v := range es.Errors {
@@ -90,4 +95,13 @@ func (es Errors) ToMap(debug bool) map[string][]map[string]any {
 	}
 
 	return m
+}
+
+func (es Errors) Append(err Error) Errors {
+	es.Errors = append(es.Errors, err)
+	return es
+}
+
+func (es Errors) AppendNew(err error) Errors {
+	return es.Append(New(err))
 }
