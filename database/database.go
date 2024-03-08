@@ -32,8 +32,10 @@ type Database struct {
 	db *gorm.DB
 }
 
-func handleError(err error) uxerrors.Errors {
+func handleError(err error) error {
 	switch err {
+	case nil:
+		return nil
 	case gorm.ErrRecordNotFound:
 		uxe := uxerrors.New(err)
 		uxe.Summary = "Feedback not found"
@@ -176,6 +178,7 @@ func (db *Database) updateFeedbackAppreciation(id uint, appr string, change int)
 }
 
 func (db *Database) IncrementFeedbackUpvotes(id uint) (*models.Feedback, error) {
+	fmt.Printf("%d upvotes 1", id)
 	return db.updateFeedbackAppreciation(id, "upvotes", 1)
 }
 
