@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestCourseValidator tests the IsCourse validator.
 func TestCourseValidator(t *testing.T) {
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	err := validate.RegisterValidation("iscourse", IsCourse, false)
