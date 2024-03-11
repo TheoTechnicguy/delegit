@@ -57,12 +57,38 @@ func IsCourse(fl validator.FieldLevel) bool {
 	return true
 }
 
+func IsWhitespace(fl validator.FieldLevel) bool {
+	text := fl.Field().String()
+	for _, v := range text {
+		switch v {
+		case ' ', '\t', '\n', '\v', '\f', '\r':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func IsAsciiNumUnicodeText(fl validator.FieldLevel) bool {
+	feedback := strings.ToLower(fl.Field().String())
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	validate.RegisterValidation("whitespace", IsWhitespace)
+	for _, v := range feedback {
+		if err := validate.Var(string(v), "alphanumunicode|whitespace"); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
 // ValidateFeedback validates the feedback structure. It returns an
 // UXErrors containing all the errors that occurred during validation
 // or nil if no errors occurred.
 func ValidateFeedback(f *models.Feedback) error {
 	v := validator.New()
 	v.RegisterValidation("iscourse", IsCourse, false)
+	v.RegisterValidation("alphanumunicodetext", IsAsciiNumUnicodeText, false)
 	err := v.Struct(f)
 
 	if err == nil {

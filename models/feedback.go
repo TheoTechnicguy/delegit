@@ -20,7 +20,7 @@ type Feedback struct {
 	// required, contains at least 25 and at most 2000 alphanumeric
 	// or unicode characters.
 	// NOTE: The upper bound may change in the future.
-	Feedback string `gorm:"<-;not null" json:"Feedback" validate:"required,min=25,max=2000,alphanumunicode"`
+	Feedback string `gorm:"<-;not null" json:"Feedback" validate:"required,min=25,max=2000,alphanumunicodetext"`
 
 	// Upvotes are votes cast by people to indicate them being in
 	// agreement, and supporting the feedback given.
