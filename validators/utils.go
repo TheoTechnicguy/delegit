@@ -63,7 +63,7 @@ func maxError(xerr *uxerrors.Error, err validator.FieldError) {
 		summary = "is too long"
 		detail = fmt.Sprintf("It should be at most %s long, but was %d. Shorten and try again.", err.Param(), len(err.Value().(string)))
 	case reflect.TypeFor[int](), reflect.TypeFor[uint]():
-		summary = "is too small"
+		summary = "is too high"
 		detail = fmt.Sprintf("It should be at most %s, but was %d. Decrease the value and try again.", err.Param(), err.Value())
 	}
 

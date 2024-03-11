@@ -70,12 +70,26 @@ func IsWhitespace(fl validator.FieldLevel) bool {
 	return true
 }
 
+func IsPunctuation(fl validator.FieldLevel) bool {
+	text := fl.Field().String()
+	for _, v := range text {
+		switch v {
+		case '.', ',', ';', ':', '!', '?', '(', ')', '[', ']', '{', '}', '<', '>', '"', '\'', '/', '\\', '|', '@', '#', '$', '%', '^', '&', '*', '-', '_', '=', '+', '~', '`':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 func IsAsciiNumUnicodeText(fl validator.FieldLevel) bool {
 	feedback := strings.ToLower(fl.Field().String())
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	validate.RegisterValidation("whitespace", IsWhitespace)
+	validate.RegisterValidation("punctuation", IsPunctuation)
 	for _, v := range feedback {
-		if err := validate.Var(string(v), "alphanumunicode|whitespace"); err != nil {
+		if err := validate.Var(string(v), "alphanumunicode|whitespace|punctuation"); err != nil {
 			return false
 		}
 	}
@@ -103,7 +117,7 @@ func ValidateFeedback(f *models.Feedback) error {
 		switch ve.Tag() {
 		case "required":
 			requiredMissingError(&xerr, ve)
-		case "alphanumunicode":
+		case "alphanumunicodetext":
 			xerr.Summary = fmt.Sprintf("The %s field contains forbidden characters", ve.Field())
 			xerr.Detail = fmt.Sprintf("The %s field contains forbidden characters. Only letter, numbers and special characters are allowed. Remove all others and try again", ve.Field())
 		case "min", "ge", "gt":
