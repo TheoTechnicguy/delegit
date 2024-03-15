@@ -1,11 +1,4 @@
-package database
-
-import (
-	"strconv"
-	"strings"
-
-	"github.com/go-playground/validator/v10"
-)
+package models
 
 // The Feedback structure represents a feedback, comment, or note
 // left by users on the page.
@@ -27,7 +20,7 @@ type Feedback struct {
 	// required, contains at least 25 and at most 2000 alphanumeric
 	// or unicode characters.
 	// NOTE: The upper bound may change in the future.
-	Feedback string `gorm:"<-;not null" json:"Feedback" validate:"required,min=25,max=2000,alphanumunicode"`
+	Feedback string `gorm:"<-;not null" json:"Feedback" validate:"required,min=25,max=2000,alphanumunicodetext"`
 
 	// Upvotes are votes cast by people to indicate them being in
 	// agreement, and supporting the feedback given.
@@ -42,38 +35,4 @@ type Feedback struct {
 	// an entry, and be at most 2000.
 	// NOTE: The upper bound may change in the future.
 	Downvotes uint `gorm:"<-;default:0;size:11;scale:0;precision:4" json:"Downvotes" validate:"omitempty,min=0,max=2000"`
-}
-
-// isCourse validates that a filed fills the UCLouvain course
-// scheme. The course scheme is as follows.
-//
-//	course := "L" faculty code
-//	faculty := letter letter letter letter?
-//	code := digit digit digit digit
-//
-// Letters are alpha ascii letters, generally uppercase. Lowercase
-// formatting should be accepted however.
-// Codes are at least 1000 and at most 9999.
-func isCourse(fl validator.FieldLevel) bool {
-	course := strings.ToLower(fl.Field().String())
-
-	validate := validator.New(validator.WithRequiredStructEnabled())
-	if err := validate.Var(course, "alphanum,min=8,max=9,startswith=l"); err != nil {
-		return false
-	}
-
-	code, err := strconv.Atoi(course[len(course)-4:])
-	if err != nil {
-		return false
-	}
-	if code < 1000 {
-		return false
-	}
-
-	faculty := course[1 : len(course)-4]
-	if err := validate.Var(faculty, "alpha,min=3,max=4"); err != nil {
-		return false
-	}
-
-	return true
 }
