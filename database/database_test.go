@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"git.licolas.net/delegit/delegit/models"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jaswdr/faker"
 	"github.com/stretchr/testify/assert"
@@ -50,7 +51,7 @@ func createMockDatabase(t *testing.T) (*Database, func(), sqlmock.Sqlmock, *sqlm
 	return db, closer, mock, schema
 }
 
-func feedbackToCSV(f ...*Feedback) (s string) {
+func feedbackToCSV(f ...*models.Feedback) (s string) {
 	fs := []string{}
 	for _, v := range f {
 		fs = append(
@@ -78,7 +79,7 @@ func feedbackToCSV(f ...*Feedback) (s string) {
 //
 // The function returns the slice of feedback and the
 // actual seed used.
-func generateFeedback(n uint, seed int64, mutator func(*Feedback, faker.Faker)) (f []*Feedback, s int64) {
+func generateFeedback(n uint, seed int64, mutator func(*models.Feedback, faker.Faker)) (f []*models.Feedback, s int64) {
 	if seed == 0 {
 		s = time.Now().UnixMilli()
 	} else {
@@ -86,13 +87,13 @@ func generateFeedback(n uint, seed int64, mutator func(*Feedback, faker.Faker)) 
 	}
 
 	if mutator == nil {
-		mutator = func(f *Feedback, fkr faker.Faker) {}
+		mutator = func(f *models.Feedback, fkr faker.Faker) {}
 	}
 
 	fkr := faker.NewWithSeed(rand.NewSource(s))
 	var i uint
 	for i = 0; i < n; i++ {
-		newFeedback := &Feedback{}
+		newFeedback := &models.Feedback{}
 		newFeedback.ID = fkr.UInt()
 		newFeedback.Course = fkr.RandomStringWithLength(10)
 		newFeedback.Feedback = fkr.Lorem().Paragraph(3)
@@ -124,7 +125,7 @@ func TestGetAllFeedbackDatabaseEmpty(t *testing.T) {
 
 	fb, err := db.GetAllFeedback()
 	assert.NoError(t, err, "fetching all feedback returned an error")
-	assert.ElementsMatch(t, []*Feedback{}, fb, "new database fetch should not return any feedback")
+	assert.ElementsMatch(t, []*models.Feedback{}, fb, "new database fetch should not return any feedback")
 }
 
 // TestGetAllFeedback is a unit test that tests the return
@@ -184,7 +185,7 @@ func TestGetFeedbackNotExists(t *testing.T) {
 	db, closer, mock, _ := createMockDatabase(t)
 	defer closer()
 
-	mutator := func(f *Feedback, fkr faker.Faker) {
+	mutator := func(f *models.Feedback, fkr faker.Faker) {
 		f.ID = fkr.UIntBetween(0, 0xffff)
 	}
 	_, seed := generateFeedback(10, 0, mutator)
@@ -216,7 +217,7 @@ func TestAddFeedback(t *testing.T) {
 	db, closer, mock, schema := createMockDatabase(t)
 	defer closer()
 
-	mutator := func(f *Feedback, fkr faker.Faker) {
+	mutator := func(f *models.Feedback, fkr faker.Faker) {
 		f.ID = fkr.UIntBetween(0, 0xffff)
 	}
 	expectedFeedback, seed := generateFeedback(10, 0, mutator)
@@ -248,7 +249,7 @@ func TestAddFeedbackInvalidCourse(t *testing.T) {
 	db, closer, _, _ := createMockDatabase(t)
 	defer closer()
 
-	mutator := func(f *Feedback, fkr faker.Faker) {
+	mutator := func(f *models.Feedback, fkr faker.Faker) {
 		f.Course = ""
 	}
 	expectedFeedback, seed := generateFeedback(10, 0, mutator)
@@ -271,7 +272,7 @@ func TestAddFeedbackInvalidFeedback(t *testing.T) {
 	db, closer, _, _ := createMockDatabase(t)
 	defer closer()
 
-	mutator := func(f *Feedback, fkr faker.Faker) {
+	mutator := func(f *models.Feedback, fkr faker.Faker) {
 		f.Feedback = ""
 	}
 	expectedFeedback, seed := generateFeedback(10, 0, mutator)
@@ -351,7 +352,7 @@ func TestUpdateFeedbackInvalidCourse(t *testing.T) {
 	db, closer, _, _ := createMockDatabase(t)
 	defer closer()
 
-	mutator := func(f *Feedback, fkr faker.Faker) {
+	mutator := func(f *models.Feedback, fkr faker.Faker) {
 		f.Course = ""
 	}
 	expectedFeedback, seed := generateFeedback(10, 0, mutator)
@@ -373,7 +374,7 @@ func TestUpdateFeedbackInvalidFeedback(t *testing.T) {
 	db, closer, _, _ := createMockDatabase(t)
 	defer closer()
 
-	mutator := func(f *Feedback, fkr faker.Faker) {
+	mutator := func(f *models.Feedback, fkr faker.Faker) {
 		f.Feedback = ""
 	}
 	expectedFeedback, seed := generateFeedback(10, 0, mutator)
@@ -479,7 +480,7 @@ func TestIncrementFeedbackUpvotes(t *testing.T) {
 	db, closer, mock, schema := createMockDatabase(t)
 	defer closer()
 
-	expectedFeedback, seed := generateFeedback(10, 0, func(f *Feedback, fkr faker.Faker) {
+	expectedFeedback, seed := generateFeedback(10, 0, func(f *models.Feedback, fkr faker.Faker) {
 		f.Upvotes = fkr.UIntBetween(0, 1999)
 	})
 
@@ -515,7 +516,7 @@ func TestDecrementFeedbackUpvotes(t *testing.T) {
 	db, closer, mock, schema := createMockDatabase(t)
 	defer closer()
 
-	expectedFeedback, seed := generateFeedback(10, 0, func(f *Feedback, fkr faker.Faker) {
+	expectedFeedback, seed := generateFeedback(10, 0, func(f *models.Feedback, fkr faker.Faker) {
 		f.Upvotes = fkr.UIntBetween(1, 2000)
 	})
 	t.Logf("seed: %x\n", seed)
@@ -550,7 +551,7 @@ func TestIncrementFeedbackDownvotes(t *testing.T) {
 	db, closer, mock, schema := createMockDatabase(t)
 	defer closer()
 
-	expectedFeedback, seed := generateFeedback(10, 0, func(f *Feedback, fkr faker.Faker) {
+	expectedFeedback, seed := generateFeedback(10, 0, func(f *models.Feedback, fkr faker.Faker) {
 		f.Downvotes = fkr.UIntBetween(0, 1999)
 	})
 
@@ -586,7 +587,7 @@ func TestDecrementFeedbackDownvotes(t *testing.T) {
 	db, closer, mock, schema := createMockDatabase(t)
 	defer closer()
 
-	expectedFeedback, seed := generateFeedback(10, 0, func(f *Feedback, fkr faker.Faker) {
+	expectedFeedback, seed := generateFeedback(10, 0, func(f *models.Feedback, fkr faker.Faker) {
 		f.Downvotes = fkr.UIntBetween(1, 2000)
 	})
 	t.Logf("seed: %x\n", seed)

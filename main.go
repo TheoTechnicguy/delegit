@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"git.licolas.net/delegit/delegit/database"
+	"git.licolas.net/delegit/delegit/logic"
 	"git.licolas.net/delegit/delegit/routes"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -40,6 +41,7 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to get database")
 	}
+	logic.Setup(db)
 
 	r := gin.Default()
 	routes.RegisterFeedbackEndpoints(db, r)

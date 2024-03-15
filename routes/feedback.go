@@ -10,10 +10,14 @@
 package routes
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"git.licolas.net/delegit/delegit/database"
+	"git.licolas.net/delegit/delegit/logic"
+	"git.licolas.net/delegit/delegit/models"
+	"git.licolas.net/delegit/delegit/uxerrors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,24 +25,56 @@ var (
 	db *database.Database
 )
 
-func getAllFeedback(ctx *gin.Context) {
-	feedback, err := db.GetAllFeedback()
-	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": err})
+func handleError(ctx *gin.Context, err error) {
+	var o any
+	var status int
+	switch v := err.(type) {
+	case uxerrors.Errors:
+		status = v.Status
+		o = v.ToMap(false)
+	case uxerrors.Error:
+		es := uxerrors.NewErrors(http.StatusInternalServerError).Append(v)
+		handleError(ctx, es)
+		return
+	case error:
+		es := uxerrors.NewErrors(http.StatusInternalServerError).AppendNew(v)
+		handleError(ctx, es)
+		return
+	default:
+		es := uxerrors.NewErrors(http.StatusInternalServerError).AppendNew(fmt.Errorf("Another, unknown error occurred"))
+		handleError(ctx, es)
+		return
 	}
+
+	ctx.AbortWithStatusJSON(status, o)
+}
+
+func feedbackBindError(err error) error {
+	uxe := uxerrors.New(err)
+	uxe.Summary = "Could not parse your feedback"
+	uxe.Detail = "The feedback you gave could not be parsed. This usually means that you did not respect the specification. Check your input and try again."
+	return uxerrors.NewErrors(http.StatusBadRequest).Append(uxe)
+}
+
+func getAllFeedback(ctx *gin.Context) {
+	feedback, err := logic.GetAllFeedback()
+	if err != nil {
+		handleError(ctx, err)
+	}
+
 	ctx.JSON(http.StatusOK, feedback)
 }
 
 func postFeedback(ctx *gin.Context) {
-	var feedback database.Feedback
+	var feedback models.Feedback
 	if err := ctx.ShouldBind(&feedback); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		handleError(ctx, feedbackBindError(err))
 		return
 	}
 
-	f, err := db.AddFeedback(&feedback)
+	f, err := logic.AddFeedback(&feedback)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		handleError(ctx, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, f)
@@ -49,46 +85,47 @@ func getFeedback(ctx *gin.Context) {
 	id := uint(_id)
 
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+
+		handleError(ctx, feedbackBindError(err))
 		return
 	}
 
-	feedback, err := db.GetFeedback(id)
+	feedback, err := logic.GetFeedback(id)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		handleError(ctx, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, feedback)
 }
 
 func putFeedback(ctx *gin.Context) {
-	var feedback *database.Feedback
+	var feedback *models.Feedback
 	if err := ctx.ShouldBind(&feedback); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		handleError(ctx, feedbackBindError(err))
 		return
 	}
 
-	feedback, err := db.UpdateFeedback(feedback)
+	feedback, err := logic.UpdateFeedback(feedback)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		handleError(ctx, err)
 		return
 	}
 	ctx.JSON(http.StatusOK, feedback)
 }
 
 func deleteFeedback(ctx *gin.Context) {
-	var feedback *database.Feedback
+	var feedback *models.Feedback
 	if err := ctx.ShouldBind(&feedback); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		handleError(ctx, feedbackBindError(err))
 		return
 	}
 
-	if err := db.DeleteFeedback(feedback); err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+	feedback, err := logic.DeleteFeedback(feedback)
+	if err != nil {
+		handleError(ctx, err)
 		return
 	}
 
-	feedback.ID = 0
 	ctx.JSON(http.StatusOK, feedback)
 }
 
@@ -105,29 +142,19 @@ func updateFeedbackUpvotes(ctx *gin.Context) {
 	id := uint(_id)
 
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		handleError(ctx, feedbackBindError(err))
 		return
 	}
 
 	var votes int
 	if err := ctx.ShouldBind(&votes); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		handleError(ctx, feedbackBindError(err))
 		return
 	}
 
-	var feedback *database.Feedback
-	switch votes {
-	case 1:
-		feedback, err = db.IncrementFeedbackUpvotes(id)
-	case -1:
-		feedback, err = db.DecrementFeedbackUpvotes(id)
-	default:
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": "unknown increment"})
-		return
-	}
-
+	feedback, err := logic.UpdateFeedbackUpvotes(id, votes)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		handleError(ctx, err)
 		return
 	}
 
@@ -139,29 +166,19 @@ func updateFeedbackDownvotes(ctx *gin.Context) {
 	id := uint(_id)
 
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		handleError(ctx, feedbackBindError(err))
 		return
 	}
 
 	var votes int
 	if err := ctx.ShouldBind(&votes); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		handleError(ctx, feedbackBindError(err))
 		return
 	}
 
-	var feedback *database.Feedback
-	switch votes {
-	case 1:
-		feedback, err = db.IncrementFeedbackDownvotes(id)
-	case -1:
-		feedback, err = db.DecrementFeedbackDownvotes(id)
-	default:
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": "unknown increment"})
-		return
-	}
-
+	feedback, err := logic.UpdateFeedbackDownvotes(id, votes)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		handleError(ctx, err)
 		return
 	}
 
