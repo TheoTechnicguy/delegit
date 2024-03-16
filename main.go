@@ -44,7 +44,7 @@ func main() {
 	logic.Setup(db)
 
 	r := gin.Default()
-	routes.RegisterFeedbackEndpoints(db, r)
+	routes.RegisterRoutes(r, db)
 
 	err = http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), r)
 

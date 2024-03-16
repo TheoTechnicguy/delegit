@@ -1,12 +1,12 @@
 /**
- * file: router/middleware.go
+ * file: routes/middleware/common.go
  * author: theo technicguy
  * license: apache-2.0
  *
  * This file contains common middleware.
  */
 
-package routes
+package middleware
 
 import (
 	"net/http"

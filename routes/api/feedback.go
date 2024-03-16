@@ -1,5 +1,5 @@
 /**
- * file: router/feedback.go
+ * file: routes/api/feedback.go
  * author: theo technicguy
  * license: apache-2.0
  *
@@ -7,7 +7,7 @@
  * the feedback endpoints.
  */
 
-package routes
+package api
 
 import (
 	"fmt"
@@ -17,6 +17,7 @@ import (
 	"git.licolas.net/delegit/delegit/database"
 	"git.licolas.net/delegit/delegit/logic"
 	"git.licolas.net/delegit/delegit/models"
+	"git.licolas.net/delegit/delegit/routes/middleware"
 	"git.licolas.net/delegit/delegit/uxerrors"
 	"github.com/gin-gonic/gin"
 )
@@ -185,14 +186,14 @@ func updateFeedbackDownvotes(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, feedback)
 }
 
-func RegisterFeedbackEndpoints(database *database.Database, router *gin.Engine) {
+func RegisterFeedbackEndpoints(database *database.Database, router *gin.RouterGroup) {
 	db = database
 
 	list := router.Group("/feedback")
-	list.Use(CommonHeaders, optionsFeedbackList)
+	list.Use(optionsFeedbackList)
 	list.GET("/", getAllFeedback)
 	list.POST("/", postFeedback)
-	list.OPTIONS("/", Terminate)
+	list.OPTIONS("/", middleware.Terminate)
 
 	entry := router.Group("/feedback/:id")
 	entry.Use(optionsFeedbackEntry)
@@ -201,5 +202,5 @@ func RegisterFeedbackEndpoints(database *database.Database, router *gin.Engine) 
 	entry.PATCH("/downvote", updateFeedbackDownvotes)
 	entry.PUT("/", putFeedback)
 	entry.DELETE("/", deleteFeedback)
-	entry.OPTIONS("/", Terminate)
+	entry.OPTIONS("/", middleware.Terminate)
 }
