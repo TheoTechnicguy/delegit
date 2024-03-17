@@ -30,22 +30,36 @@ func sanitizeFeedback(f *models.Feedback) {
 }
 
 func GetAllFeedback() ([]*models.Feedback, error) {
-	return db.GetAllFeedback()
+	fs, err := db.GetAllFeedback()
+	if err != nil {
+		return nil, handleDatabaseError(err)
+	}
+
+	return fs, nil
 }
 
 func GetFeedback(id uint) (*models.Feedback, error) {
-	return db.GetFeedback(id)
+	f, err := db.GetFeedback(id)
+	if err != nil {
+		return nil, handleDatabaseError(err)
+	}
+
+	return f, nil
 }
 
 func AddFeedback(f *models.Feedback) (*models.Feedback, error) {
-	// Sanitize data
 	sanitizeFeedback(f)
 
 	if err := validators.ValidateFeedback(f); err != nil {
 		return nil, err
 	}
 
-	return db.AddFeedback(f)
+	r, err := db.AddFeedback(f)
+	if err != nil {
+		return nil, handleDatabaseError(err)
+	}
+
+	return r, nil
 }
 
 func UpdateFeedback(f *models.Feedback) (*models.Feedback, error) {
@@ -53,7 +67,12 @@ func UpdateFeedback(f *models.Feedback) (*models.Feedback, error) {
 		return nil, err
 	}
 
-	return db.UpdateFeedback(f)
+	r, err := db.UpdateFeedback(f)
+	if err != nil {
+		return nil, handleDatabaseError(err)
+	}
+
+	return r, nil
 }
 
 func DeleteFeedback(f *models.Feedback) (*models.Feedback, error) {
@@ -63,7 +82,7 @@ func DeleteFeedback(f *models.Feedback) (*models.Feedback, error) {
 
 	err := db.DeleteFeedback(f)
 	f.ID = 0
-	return f, err
+	return f, handleDatabaseError(err)
 }
 
 func UpdateFeedbackUpvotes(id uint, votes int) (*models.Feedback, error) {
@@ -81,7 +100,7 @@ func UpdateFeedbackUpvotes(id uint, votes int) (*models.Feedback, error) {
 		return nil, uxerrors.NewErrors(http.StatusBadRequest).Append(uxe)
 	}
 
-	return feedback, err
+	return feedback, handleDatabaseError(err)
 }
 
 func UpdateFeedbackDownvotes(id uint, votes int) (*models.Feedback, error) {
@@ -99,7 +118,7 @@ func UpdateFeedbackDownvotes(id uint, votes int) (*models.Feedback, error) {
 		return nil, uxerrors.NewErrors(http.StatusBadRequest).Append(uxe)
 	}
 
-	return feedback, err
+	return feedback, handleDatabaseError(err)
 }
 
 func Setup(database *database.Database) {
