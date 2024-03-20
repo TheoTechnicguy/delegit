@@ -1,0 +1,29 @@
+# file: database/docker-compose.yaml
+# author: theo technicguy
+# license: apache-2.0
+#
+# This docker compose file is used to test the database
+# connector to postgres. It is not intended for production
+# use.
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    pull_policy: missing
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: test
+    ports:
+      - 127.0.0.1:5432:5432/tcp
+    volumes:
+      # Default read-only mounts
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro

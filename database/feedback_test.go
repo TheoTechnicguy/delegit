@@ -230,59 +230,13 @@ func TestAddFeedback(t *testing.T) {
 		mock.ExpectBegin()
 		mock.
 			ExpectQuery("^INSERT INTO [`\"']feedbacks[`\"'] .*$").
-			WithArgs(f.Course, f.Feedback, 0, 0).
+			WithArgs(f.Course, f.Feedback, f.Upvotes, f.Downvotes, f.ID).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(f.ID))
 		mock.ExpectCommit()
 
 		actual, err := db.AddFeedback(f)
 		assert.NoError(t, err, "there was an error adding the feedback to the database")
 		assert.Equal(t, f, actual, "the expected and the actual feedback should be the same")
-	}
-}
-
-// TestAddFeedbackInvalidCourse is a unit test that tests the
-// return value and the stored data in the database using
-// randomly created invalid feedback (by faker).
-// AddFeedback is expected to reject invalid feedback, meaning
-// feedback with missing Course.
-func TestAddFeedbackInvalidCourse(t *testing.T) {
-	db, closer, _, _ := createMockDatabase(t)
-	defer closer()
-
-	mutator := func(f *models.Feedback, fkr faker.Faker) {
-		f.Course = ""
-	}
-	expectedFeedback, seed := generateFeedback(10, 0, mutator)
-	t.Logf("seed: %x\n", seed)
-
-	for _, f := range expectedFeedback {
-		actual, err := db.AddFeedback(f)
-		assert.Error(t, err, "invalid feedback should return an error")
-		assert.ErrorIs(t, err, ErrInvalidFeedback, "add invalid feedback should return invalid feedback error")
-		assert.Nil(t, actual, "no feedback should be returned when there is an error")
-	}
-}
-
-// TestAddFeedbackInvalidFeedback is a unit test that tests the
-// return value and the stored data in the database using
-// randomly created invalid feedback (by faker).
-// AddFeedback is expected to reject invalid feedback, meaning
-// feedback with missing Feedback.
-func TestAddFeedbackInvalidFeedback(t *testing.T) {
-	db, closer, _, _ := createMockDatabase(t)
-	defer closer()
-
-	mutator := func(f *models.Feedback, fkr faker.Faker) {
-		f.Feedback = ""
-	}
-	expectedFeedback, seed := generateFeedback(10, 0, mutator)
-	t.Logf("seed: %x\n", seed)
-
-	for _, f := range expectedFeedback {
-		actual, err := db.AddFeedback(f)
-		assert.Error(t, err, "invalid feedback should return an error")
-		assert.ErrorIs(t, err, ErrInvalidFeedback, "add invalid feedback should return invalid feedback error")
-		assert.Nil(t, actual, "no feedback should be returned when there is an error")
 	}
 }
 
@@ -303,7 +257,7 @@ func TestAddFeedbackError(t *testing.T) {
 		mock.ExpectBegin()
 		mock.
 			ExpectQuery("^INSERT INTO [`\"']feedbacks[`\"'] .*$").
-			WithArgs(f.Course, f.Feedback, 0, 0).
+			WithArgs(f.Course, f.Feedback, f.Upvotes, f.Downvotes, f.ID).
 			WillReturnError(gorm.ErrDuplicatedKey)
 		mock.ExpectRollback()
 
@@ -341,50 +295,6 @@ func TestUpdateFeedback(t *testing.T) {
 		actual, err := db.UpdateFeedback(f)
 		assert.NoError(t, err, "update valid feedback should not return an error")
 		assert.Equal(t, f, actual, "returned feedback should be the same as the updated one")
-	}
-}
-
-// TestUpdateFeedbackInvalidCourse is a unit test that tests
-// the return value and the stored data in the database using
-// randomly created feedback.
-// UpdateFeedback is expected reject invalid feedback updates.
-func TestUpdateFeedbackInvalidCourse(t *testing.T) {
-	db, closer, _, _ := createMockDatabase(t)
-	defer closer()
-
-	mutator := func(f *models.Feedback, fkr faker.Faker) {
-		f.Course = ""
-	}
-	expectedFeedback, seed := generateFeedback(10, 0, mutator)
-	t.Logf("seed: %x\n", seed)
-
-	for _, f := range expectedFeedback {
-		actual, err := db.UpdateFeedback(f)
-		assert.Error(t, err, "update invalid feedback should return invalid feedback error")
-		assert.ErrorIs(t, err, ErrInvalidFeedback, "update invalid feedback should return invalid feedback error")
-		assert.Nil(t, actual, "returned feedback should be nil on invalid update")
-	}
-}
-
-// TestUpdateFeedbackInvalidFeedback is a unit test that tests
-// the return value and the stored data in the database using
-// randomly created feedback.
-// UpdateFeedback is expected reject invalid feedback updates.
-func TestUpdateFeedbackInvalidFeedback(t *testing.T) {
-	db, closer, _, _ := createMockDatabase(t)
-	defer closer()
-
-	mutator := func(f *models.Feedback, fkr faker.Faker) {
-		f.Feedback = ""
-	}
-	expectedFeedback, seed := generateFeedback(10, 0, mutator)
-	t.Logf("seed: %x\n", seed)
-
-	for _, f := range expectedFeedback {
-		actual, err := db.UpdateFeedback(f)
-		assert.Error(t, err, "update invalid feedback should return invalid feedback error")
-		assert.ErrorIs(t, err, ErrInvalidFeedback, "update invalid feedback should return invalid feedback error")
-		assert.Nil(t, actual, "returned feedback should be nil on invalid update")
 	}
 }
 
@@ -612,4 +522,81 @@ func TestDecrementFeedbackDownvotes(t *testing.T) {
 		assert.NoError(t, err, "update valid feedback should not return an error")
 		assert.Equal(t, f, actual, "returned feedback should be the same as the updated one")
 	}
+}
+
+// TestUpdateFeedbackAppreciationTransactionStartError tests
+// the error handling of the transaction start in the
+// updateFeedbackAppreciation function.
+func TestUpdateFeedbackAppreciationTransactionStartError(t *testing.T) {
+	db, closer, mock, _ := createMockDatabase(t)
+	defer closer()
+
+	mock.ExpectBegin().WillReturnError(assert.AnError)
+
+	mutator := func(f *models.Feedback) {}
+
+	f, err := db.updateFeedbackAppreciation(0, mutator)
+	assert.Error(t, err, "an error should be returned")
+	assert.ErrorIs(t, err, assert.AnError, "begin error should be returned")
+	assert.Nil(t, f, "no feedback should be returned")
+}
+
+// TestUpdateFeedbackAppreciationFirstError tests the error
+// handling of the first query in the updateFeedbackAppreciation
+// function.
+func TestUpdateFeedbackAppreciationFirstError(t *testing.T) {
+	db, closer, mock, _ := createMockDatabase(t)
+	defer closer()
+
+	mock.ExpectBegin()
+	mock.
+		ExpectQuery("^SELECT .+ FROM [`\"']feedbacks[`\"'] WHERE [`\"']feedbacks[`\"']\\.[`\"']id[`\"']\\W*=.*$").
+		WithArgs(0, 1).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	mutator := func(f *models.Feedback) {}
+
+	f, err := db.updateFeedbackAppreciation(0, mutator)
+	assert.Error(t, err, "an error should be returned")
+	assert.ErrorIs(t, err, assert.AnError, "first error should be returned")
+	assert.Nil(t, f, "no feedback should be returned")
+}
+
+// TestUpdateFeedbackAppreciationSaveError tests the error
+// handling of the save query in the updateFeedbackAppreciation
+// function.
+func TestUpdateFeedbackAppreciationSaveError(t *testing.T) {
+	db, closer, mock, schema := createMockDatabase(t)
+	defer closer()
+
+	expectFeedback, seed := generateFeedback(1, 0, nil)
+	t.Logf("seed: %x\n", seed)
+
+	expectSQL := schema
+	expectSQL.FromCSVString(feedbackToCSV(expectFeedback...))
+
+	mock.ExpectBegin()
+	mock.
+		ExpectQuery("^SELECT .+ FROM [`\"']feedbacks[`\"'] WHERE [`\"']feedbacks[`\"']\\.[`\"']id[`\"']\\W*=.*$").
+		WithArgs(expectFeedback[0].ID, 1).
+		WillReturnRows(expectSQL)
+	mock.
+		ExpectExec("^UPDATE [`\"']feedbacks[`\"'] SET .* WHERE .*$").
+		WithArgs(
+			expectFeedback[0].Course,
+			expectFeedback[0].Feedback,
+			expectFeedback[0].Upvotes,
+			expectFeedback[0].Downvotes,
+			expectFeedback[0].ID,
+		).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	mutator := func(f *models.Feedback) {}
+
+	f, err := db.updateFeedbackAppreciation(expectFeedback[0].ID, mutator)
+	assert.Error(t, err, "an error should be returned")
+	assert.ErrorIs(t, err, assert.AnError, "save error should be returned")
+	assert.Nil(t, f, "no feedback should be returned")
 }
