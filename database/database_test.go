@@ -523,3 +523,80 @@ func TestDecrementFeedbackDownvotes(t *testing.T) {
 		assert.Equal(t, f, actual, "returned feedback should be the same as the updated one")
 	}
 }
+
+// TestUpdateFeedbackAppreciationTransactionStartError tests
+// the error handling of the transaction start in the
+// updateFeedbackAppreciation function.
+func TestUpdateFeedbackAppreciationTransactionStartError(t *testing.T) {
+	db, closer, mock, _ := createMockDatabase(t)
+	defer closer()
+
+	mock.ExpectBegin().WillReturnError(assert.AnError)
+
+	mutator := func(f *models.Feedback) {}
+
+	f, err := db.updateFeedbackAppreciation(0, mutator)
+	assert.Error(t, err, "an error should be returned")
+	assert.ErrorIs(t, err, assert.AnError, "begin error should be returned")
+	assert.Nil(t, f, "no feedback should be returned")
+}
+
+// TestUpdateFeedbackAppreciationFirstError tests the error
+// handling of the first query in the updateFeedbackAppreciation
+// function.
+func TestUpdateFeedbackAppreciationFirstError(t *testing.T) {
+	db, closer, mock, _ := createMockDatabase(t)
+	defer closer()
+
+	mock.ExpectBegin()
+	mock.
+		ExpectQuery("^SELECT .+ FROM [`\"']feedbacks[`\"'] WHERE [`\"']feedbacks[`\"']\\.[`\"']id[`\"']\\W*=.*$").
+		WithArgs(0, 1).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	mutator := func(f *models.Feedback) {}
+
+	f, err := db.updateFeedbackAppreciation(0, mutator)
+	assert.Error(t, err, "an error should be returned")
+	assert.ErrorIs(t, err, assert.AnError, "first error should be returned")
+	assert.Nil(t, f, "no feedback should be returned")
+}
+
+// TestUpdateFeedbackAppreciationSaveError tests the error
+// handling of the save query in the updateFeedbackAppreciation
+// function.
+func TestUpdateFeedbackAppreciationSaveError(t *testing.T) {
+	db, closer, mock, schema := createMockDatabase(t)
+	defer closer()
+
+	expectFeedback, seed := generateFeedback(1, 0, nil)
+	t.Logf("seed: %x\n", seed)
+
+	expectSQL := schema
+	expectSQL.FromCSVString(feedbackToCSV(expectFeedback...))
+
+	mock.ExpectBegin()
+	mock.
+		ExpectQuery("^SELECT .+ FROM [`\"']feedbacks[`\"'] WHERE [`\"']feedbacks[`\"']\\.[`\"']id[`\"']\\W*=.*$").
+		WithArgs(expectFeedback[0].ID, 1).
+		WillReturnRows(expectSQL)
+	mock.
+		ExpectExec("^UPDATE [`\"']feedbacks[`\"'] SET .* WHERE .*$").
+		WithArgs(
+			expectFeedback[0].Course,
+			expectFeedback[0].Feedback,
+			expectFeedback[0].Upvotes,
+			expectFeedback[0].Downvotes,
+			expectFeedback[0].ID,
+		).
+		WillReturnError(assert.AnError)
+	mock.ExpectRollback()
+
+	mutator := func(f *models.Feedback) {}
+
+	f, err := db.updateFeedbackAppreciation(expectFeedback[0].ID, mutator)
+	assert.Error(t, err, "an error should be returned")
+	assert.ErrorIs(t, err, assert.AnError, "save error should be returned")
+	assert.Nil(t, f, "no feedback should be returned")
+}

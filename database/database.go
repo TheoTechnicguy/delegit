@@ -1,78 +1,17 @@
 /**
- * file: database/database.go
+ * file: database/feedback.go
  * author: theo technicguy
  * license: apache-2.0
  *
- * The database package provides data persistance
- * for the entire application.
+ * This file contains the feedback database
+ * logic for the data persistance plane.
  */
 
-// The database package provides persistance for application data
 package database
 
 import (
-	"errors"
-	"fmt"
-
 	"git.licolas.net/delegit/delegit/models"
-	"github.com/rs/zerolog/log"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
-
-var (
-	ErrInvalidFeedback error = errors.New("invalid feedback")
-
-	ErrInvalidDatabaseKind error = errors.New("invalid database type")
-)
-
-type Database struct {
-	db *gorm.DB
-}
-
-func NewDatabase(kind, dsn string) (*Database, error) {
-	var dialect gorm.Dialector
-	switch kind {
-	case "sqlite":
-		dialect = sqlite.Open(dsn)
-	default:
-		return nil, ErrInvalidDatabaseKind
-	}
-
-	db, err := NewDatabaseFromDialector(dialect, &gorm.Config{})
-	if err != nil {
-		return nil, err
-	}
-
-	err = db.AutoMigrate()
-	return db, err
-}
-
-func NewDatabaseFromDialector(dialect gorm.Dialector, config *gorm.Config) (*Database, error) {
-	db := new(Database)
-
-	var err error
-	db.db, err = gorm.Open(dialect, config)
-	if err != nil {
-		return nil, err
-	}
-
-	return db, err
-}
-
-func (db *Database) AutoMigrate() error {
-	t := []any{
-		models.Feedback{},
-	}
-
-	for _, v := range t {
-		if err := db.db.AutoMigrate(&v); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
 
 func (db *Database) GetAllFeedback() (f []*models.Feedback, err error) {
 	err = db.db.Find(&f).Error
@@ -89,8 +28,6 @@ func (db *Database) GetFeedback(id uint) (*models.Feedback, error) {
 }
 
 func (db *Database) AddFeedback(feedback *models.Feedback) (*models.Feedback, error) {
-	log.Debug().Any("feedback", feedback).Msg("adding feedback")
-
 	if r := db.db.Create(feedback); r.Error != nil {
 		return nil, r.Error
 	}
@@ -118,8 +55,13 @@ func (db *Database) DeleteFeedback(feedback *models.Feedback) error {
 	return nil
 }
 
-func (db *Database) updateFeedbackAppreciation(id uint, appr string, change int) (*models.Feedback, error) {
-	f := &models.Feedback{}
+// updateFeedbackAppreciation is a helper function to update the feedback
+// appreciation counters. It is used to increment and decrement the upvotes
+// and downvotes of a feedback.
+// It takes the id of the feedback to update and a mutator function that
+// takes a pointer to the feedback and modifies it in place.
+func (db *Database) updateFeedbackAppreciation(id uint, mutator func(*models.Feedback)) (*models.Feedback, error) {
+	f := new(models.Feedback)
 	tx := db.db.Begin()
 	defer tx.Rollback()
 
@@ -127,30 +69,7 @@ func (db *Database) updateFeedbackAppreciation(id uint, appr string, change int)
 		return nil, r.Error
 	}
 
-	var votes *uint
-	switch appr {
-	case "upvotes":
-		votes = &f.Upvotes
-	case "downvotes":
-		votes = &f.Downvotes
-	default:
-		return nil, fmt.Errorf("unknown appreciation")
-	}
-
-	switch change {
-	case 1:
-		if *votes > 2000 {
-			return nil, fmt.Errorf("out of bounds")
-		} else {
-			*votes += 1
-		}
-	case -1:
-		if *votes == 0 {
-			return nil, fmt.Errorf("out of bounds")
-		} else {
-			*votes -= 1
-		}
-	}
+	mutator(f)
 
 	if r := tx.Save(f); r.Error != nil {
 		return nil, r.Error
@@ -162,18 +81,33 @@ func (db *Database) updateFeedbackAppreciation(id uint, appr string, change int)
 }
 
 func (db *Database) IncrementFeedbackUpvotes(id uint) (*models.Feedback, error) {
-	fmt.Printf("%d upvotes 1", id)
-	return db.updateFeedbackAppreciation(id, "upvotes", 1)
+	mutator := func(f *models.Feedback) {
+		f.Upvotes++
+	}
+
+	return db.updateFeedbackAppreciation(id, mutator)
 }
 
 func (db *Database) DecrementFeedbackUpvotes(id uint) (*models.Feedback, error) {
-	return db.updateFeedbackAppreciation(id, "upvotes", -1)
+	mutator := func(f *models.Feedback) {
+		f.Upvotes--
+	}
+
+	return db.updateFeedbackAppreciation(id, mutator)
 }
 
 func (db *Database) IncrementFeedbackDownvotes(id uint) (*models.Feedback, error) {
-	return db.updateFeedbackAppreciation(id, "downvotes", 1)
+	mutator := func(f *models.Feedback) {
+		f.Downvotes++
+	}
+
+	return db.updateFeedbackAppreciation(id, mutator)
 }
 
 func (db *Database) DecrementFeedbackDownvotes(id uint) (*models.Feedback, error) {
-	return db.updateFeedbackAppreciation(id, "downvotes", -1)
+	mutator := func(f *models.Feedback) {
+		f.Downvotes--
+	}
+
+	return db.updateFeedbackAppreciation(id, mutator)
 }
